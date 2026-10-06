@@ -17,6 +17,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 1 | Eliminar código muerto verificando con grep | −40 líneas: 3 funciones muertas, global e import sin uso, encoding | Menos superficie, cero ambigüedad; git guarda el historial | 56/56 ✅ | 13 |
 | 2 | Números mágicos → constantes, sin tocar la estructura | 13 constantes de negocio en `gestor.py`; `reportes` usa `STOCK_MINIMO` | Nombres que explican la regla; una sola fuente de verdad | 56/56 ✅ | 13 |
 | 3 | Extraer cálculo de precios duplicado (con CoT para demostrar equivalencia de floats) | `calcular_descuento_volumen`, `calcular_importes` → `Importes`; usadas por venta y cotización | DRY: venta y cotización ya no pueden divergir; lógica de precios aislada y probable | 56/56 ✅ | 11 |
+| 4 | Dividir `registrar_venta` + cláusulas de guarda (con lista de lo que NO debe cambiar) | 4 funciones extraídas; complejidad 12 → 2; VIP de 4 `if` a 1 | Responsabilidad única, sin efecto flecha, intención explícita | 56/56 ✅ | 8 |
 
 ---
 
@@ -278,3 +279,57 @@ de complejidad 12 a < 10 y desaparecieron **C901** y **SIM108** sin
 atacarlas directamente.
 
 **Validación:** `pytest` **56 passed**; `ruff` 13 → **11**.
+
+---
+
+## Refactorización 4 — Dividir `registrar_venta` y aplanar condicionales
+
+**Prompt (restricciones explícitas de qué NO tocar):**
+
+```text
+Refactorización 4: registrar_venta sigue haciendo 5 cosas (validar, cobrar,
+descontar stock, generar folio, armar ticket) y tiene dos pirámides de if
+anidados (validación de 4 niveles y regla VIP de 4 niveles).
+1. Extrae _validar_venta(codigo, cantidad) que regrese el mensaje de error o
+   None, usando cláusulas de guarda en el MISMO orden de evaluación actual
+   (codigo vacío → producto no existe → cantidad inválida → stock insuficiente).
+2. Extrae es_cliente_vip(cliente) y reduce la regla VIP a un solo if.
+3. Extrae _armar_ticket(venta, hubo_descuento) y _siguiente_folio().
+4. Construye el dict de la venta con un literal en vez de 11 asignaciones.
+Restricciones: el texto del ticket debe ser idéntico byte a byte (la
+condición de la línea "Descuento" usa el descuento SIN redondear); el
+diccionario de la venta conserva las mismas claves en el mismo orden;
+cotizar conserva su propio orden de validación (no la unifiques: con
+codigo "" hoy responde "producto no existe", no "codigo vacio").
+Corre pytest y ruff; reporta la complejidad ciclomática antes/después.
+```
+
+**Cambio:**
+
+| Antes | Después |
+|-------|---------|
+| `registrar_venta`: 1 función de ~70 líneas, complejidad 12 | `registrar_venta` (complejidad **2**) + `_validar_venta`, `es_cliente_vip`, `_armar_ticket`, `_siguiente_folio` |
+| `if` anidados 4 niveles (validación) | 4 cláusulas de guarda planas |
+| `if cliente != "" and ...: if len(...) >= 3: if cliente[0:3] == "VIP": if ...` | `if es_cliente_vip(cliente) and subtotal - descuento > MONTO_MINIMO_VIP:` |
+| Ticket con 9 concatenaciones `t = t + ...` | Lista de líneas + f-strings + `"\n".join` |
+
+**Justificación:** cada función tiene ahora una sola responsabilidad y un
+nombre que la describe; `registrar_venta` se lee como un resumen del proceso.
+Las cláusulas de guarda eliminan el "efecto flecha": el camino feliz queda al
+final sin sangría y cada error se ve junto a su condición. `es_cliente_vip`
+reemplaza 3 `if` y un slicing manual por `str.startswith`, que expresa la
+intención directamente.
+
+**Puntos de equivalencia revisados:**
+
+- `cliente.startswith("VIP")` ≡ `len(cliente) >= 3 and cliente[0:3] == "VIP"`;
+  `bool(cliente)` cubre `None` y `""`. Cubierto por los 7 casos VIP
+  parametrizados (minúsculas, `XVIP`, `VI`, `None`, …).
+- `f"{x}"` produce lo mismo que `str(x)` para floats → el ticket no cambia
+  (lo verifican las pruebas de texto exacto).
+- Se decidió **no** unificar la validación de `cotizar` con `_validar_venta`:
+  cambiaría el mensaje de error para un código vacío. Queda como posible
+  mejora futura que requiere decisión de negocio.
+
+**Validación:** `pytest` **56 passed**; `ruff` 11 → **8** (desaparecen los
+3 SIM102).
