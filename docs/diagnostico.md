@@ -50,7 +50,9 @@ Errores de ruff por regla:
 |---|----------|-----------|----------|
 | B1 | `cargar_datos` con un JSON válido pero sin `"inventario"` lanza `KeyError` | Probado: `{"otra": 1}` → `KeyError: 'inventario'` | Corregir en la refactorización de manejo de errores: regresar `False` y `ultimo_error = "archivo corrupto"` (coherente con el contrato documentado: "Regresa False si el archivo ... esta corrupto"). |
 | B2 | `cotizar` no aplica el descuento VIP (no recibe cliente) | `cotizar("A1", 6)` = 661.2; venta VIP = 647.28 | **No se cambia**: el test `test_cotizar_coincide_con_el_total_de_la_venta` fija el contrato sin cliente. Se documenta. |
-| B3 | El README indica `cd src && python main.py`, pero `ARCHIVO = "datos_ejemplo.json"` es relativo al directorio actual: desde `src/` no encuentra los datos de ejemplo y al guardar crea un archivo nuevo en `src/` | Probado: no aparece "Datos cargados de…" | Pendiente de decidir (ver plan, paso opcional). |
+| B3 | El README indica `cd src && python main.py`, pero `ARCHIVO = "datos_ejemplo.json"` es relativo al directorio actual: desde `src/` no encuentra los datos de ejemplo y al guardar crea un archivo nuevo en `src/` | Probado: no aparece "Datos cargados de…" | **Corregido** en un commit `fix` aparte (decisión del autor), con TDD. |
+| B4 | *(descubierto durante el fix de B3)* el menú imprime "Datos cargados" aunque `cargar_datos` falle | Prueba con archivo corrupto | **Corregido** junto con B3. |
+| B5 | *(descubierto en la refactorización 6 con TDD)* con `{"inventario": {}}` el inventario se vaciaba antes de lanzar `KeyError` (carga a medias); con tipos incorrectos se aceptaban los datos | Pruebas en rojo de `test_manejo_errores.py` | **Corregido** en la refactorización 6 (validar antes de mutar). |
 
 ## Restricciones que condicionan el plan
 
@@ -75,3 +77,13 @@ Errores de ruff por regla:
 | 8 | Dividir el menú en funciones por opción (tabla de despacho) | Extraer funciones | S10 | Sin C901 en `main` |
 | 9 | Agregar type hints y docstrings (`TypedDict` para producto y venta) | Type hints | S12 | Todas las funciones anotadas |
 | Final | `ruff check src` = 0, `pytest` verde, README actualizado, reflexión | Validación | — | 0 errores de ruff |
+
+## Estado final
+
+| Verificación | Inicio | Final |
+|--------------|--------|-------|
+| `pytest` | 20 passed | **66 passed** (20 originales sin modificar + 46 nuevas) |
+| `ruff check src` | 20 errores | **0** |
+| `mypy --strict` (extra) | 82 errores | **0** |
+| Complejidad máxima | 17 (`menu`), 12 (`registrar_venta`) | ≤ 5 |
+| Salida del menú vs. original | — | idéntica (salvo los fixes B3/B4 deliberados) |

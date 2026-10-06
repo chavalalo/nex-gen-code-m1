@@ -651,3 +651,38 @@ modificar los datos de ejemplo del repo durante pruebas manuales, conviene
 restaurarlos con `git restore datos_ejemplo.json`.
 
 **Validación:** `pytest` **66 passed**; `ruff` **0**; `mypy --strict` **0**.
+
+---
+
+## Cierre
+
+| Verificación | Inicio | Final | Evidencia |
+|--------------|--------|-------|-----------|
+| `pytest` | 20 passed | **66 passed** | `docs/evidencia/final_pytest.log` |
+| `ruff check src` | 20 errores | **0** | `docs/evidencia/final_ruff.log` |
+| `mypy --strict` | 82 errores | **0** | `docs/evidencia/final_mypy.log` |
+| Menú vs. original | — | idéntico (206 líneas) | `docs/evidencia/r7_diff_menu.log` |
+
+### Intentos fallidos y cómo se resolvieron (resumen)
+
+| Paso | Qué falló | Cómo se resolvió |
+|------|-----------|------------------|
+| Caracterización | Valor esperado mal calculado (1151.99) | El código original es la fuente de verdad → se corrigió la prueba |
+| Caracterización | Prueba acoplada a `contadorVentas` (se iba a renombrar) | Se usó el folio observable en lugar del detalle interno |
+| R5 | Un nombre largo provocó E501 nuevo | `+=` equivalente; ruff después de cada cambio lo detectó al instante |
+| R6 | La primera versión no capturaba `UnicodeDecodeError` | Nueva prueba en rojo → se agregó a la excepción capturada |
+| R9 | mypy no deduce `not None` desde `bool(cliente)` | Forma explícita equivalente (`cliente is not None and ...`) |
+| R9 | El historial de `CLAUDE.md` describía mal cuándo se hizo cada cambio | Se reescribió para reflejar lo que pasó realmente |
+
+### Sugerencias para el código base del reto
+
+- `cotizar` no acepta cliente, así que nunca refleja el descuento VIP (B2):
+  la cotización de un cliente VIP no coincide con lo que paga.
+- El estado global en `gestor` impide tener dos tiendas o pruebas en
+  paralelo; una clase `Tienda` sería el siguiente paso si se permitiera
+  adaptar los tests.
+- El dinero se maneja con `float`; para una tienda real convendría `Decimal`.
+
+## Reflexión final
+
+Ver [`docs/reflexion.md`](reflexion.md).
