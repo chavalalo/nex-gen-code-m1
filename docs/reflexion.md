@@ -21,7 +21,7 @@ Hubo varias situaciones donde tuve que revisar lo que proponía y poner límites
 
 - **Una prueba tenía mal calculado el resultado esperado.** La IA puso 1151.99 en lugar de 1101.99. Como la prueba falló contra el código original, se corrigió la prueba. Esto me dejó una lección clara: también hay que verificar las pruebas que genera la IA.
 - **La documentación no reflejaba lo que había pasado.** En `CLAUDE.md` se decía que ciertos cambios se habían realizado durante las refactorizaciones 6 y 7, cuando se hicieron juntos al final. Se corrigió para mantener un historial preciso.
-- **Quiso unificar las validaciones de `cotizar` y `registrar_venta`.** Parecía razonable, pero cambiaba el mensaje de error cuando el código estaba vacío. Lo rechacé porque ya implicaba modificar el comportamiento.
+- **Unificar las validaciones de `cotizar` y `registrar_venta`.** Parecía razonable, pero cambiaba el mensaje de error cuando el código estaba vacío. Y se decidió no hacerlo porque implicaba modificar el comportamiento.
 - **Propuso eliminar el estado global.** Podía ser una mejora de diseño, pero los tests utilizan directamente `gestor.INVENTARIO` y no se podían modificar. Se redujeron los riesgos de su uso, validando antes de modificar el inventario y evitando efectos secundarios en los reportes.
 - **Detectó el problema de la ruta de datos (B3).** Se documentó y después decidí corregirlo en un commit `fix:` separado. Separar las correcciones de las refactorizaciones facilitó revisar el historial y entender el propósito de cada cambio.
 
