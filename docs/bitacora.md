@@ -21,6 +21,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 5 | Renombrado descriptivo + PEP 8 con few-shot de ejemplos y lista de nombres intocables | ~35 renombres en 4 archivos; comentarios → docstrings | Código autoexplicativo; estilo consistente | 56/56 ✅ | 6 |
 | 6 | Manejo de errores con TDD (prueba en rojo → fix mínimo → iteración UTF-8) | `with`, excepciones específicas, validación antes de mutar, errores como constantes | Carga atómica; ningún error se traga ni deja el sistema a medias | 64/64 ✅ | 2 |
 | 7 | Separar E/S de reportes + biblioteca estándar, con verificación diferencial contra el original | Reportes sin `print`; burbuja → `sorted`; `sum`, `Counter`, comprehensions | Responsabilidad única, reutilizable, O(n log n) | 64/64 ✅ + diff idéntico | 2 |
+| 8 | Menú → funciones por opción + diccionario de despacho, verificado con el diferencial | `menu()` complejidad 18 → 3; sin duplicación de errores ni de `int(pedir_numero())` | Abierto/cerrado: nueva opción = nueva función + 1 entrada | 64/64 ✅ + diff idéntico | **0** |
 
 ---
 
@@ -516,3 +517,39 @@ línea.
 
 **Validación:** `pytest` **64 passed**; diferencial del menú idéntico;
 `ruff` **2** (sin cambio: solo quedan los de `main.py`).
+
+---
+
+## Refactorización 8 — Dividir el menú en funciones (tabla de despacho)
+
+**Prompt:**
+
+```text
+Refactorización 8 (main.py): menu() tiene complejidad 18 por un if/elif de
+8 ramas con la lógica de cada opción adentro.
+- Extrae una función por opción (opcion_agregar_producto, opcion_cotizar...).
+- Reemplaza el if/elif por un diccionario ACCIONES {"1": funcion, ...};
+  la opción 8 (salir) se maneja aparte porque rompe el ciclo.
+- Elimina la duplicación: el print("Error:", gestor.ultimo_error) aparece 3
+  veces y int(pedir_numero(...)) otras 3.
+- Las 8 líneas del menú como una tupla de constantes.
+Restricción: la salida en consola debe ser idéntica byte a byte; verifícalo
+con docs/evidencia/comparar_menu.py contra el commit inicial. Ordena los
+imports (I001).
+```
+
+**Cambio:** `menu()` pasó de ~60 líneas y complejidad 18 a 12 líneas y
+complejidad 3. Nuevas funciones `opcion_*` (una por opción),
+`pedir_entero`, `mostrar_error`, `cargar_datos_iniciales`,
+`imprimir_menu`, `guardar_y_salir`; constantes `OPCIONES_MENU`, `ACCIONES`,
+`OPCION_SALIR`. Imports en orden alfabético.
+
+**Justificación:** agregar una opción nueva ahora significa escribir una
+función y añadir una entrada al diccionario, sin tocar el ciclo (principio
+abierto/cerrado). Cada opción se puede leer y probar por separado. La tabla
+de despacho es el patrón idiomático de Python para reemplazar un
+`switch` largo.
+
+**Validación:** `pytest` **64 passed**; diferencial del menú: **idéntico**;
+`ruff check src` → **All checks passed! (0 errores)** 🎉
+(`docs/evidencia/r8_ruff.log`).
