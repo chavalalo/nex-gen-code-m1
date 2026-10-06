@@ -96,11 +96,11 @@ def actualizar_stock(codigo, cantidad):
 def buscarProducto(texto):
     """Regresa los productos cuyo nombre contiene el texto (sin importar mayusculas)."""
     texto_buscado = texto.lower()
-    coincidencias = []
-    for producto in INVENTARIO.values():
-        if texto_buscado in producto["nombre"].lower():
-            coincidencias.append(producto)
-    return coincidencias
+    return [
+        producto
+        for producto in INVENTARIO.values()
+        if texto_buscado in producto["nombre"].lower()
+    ]
 
 
 class Importes(NamedTuple):

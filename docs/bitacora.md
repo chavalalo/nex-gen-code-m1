@@ -20,6 +20,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 4 | Dividir `registrar_venta` + cláusulas de guarda (con lista de lo que NO debe cambiar) | 4 funciones extraídas; complejidad 12 → 2; VIP de 4 `if` a 1 | Responsabilidad única, sin efecto flecha, intención explícita | 56/56 ✅ | 8 |
 | 5 | Renombrado descriptivo + PEP 8 con few-shot de ejemplos y lista de nombres intocables | ~35 renombres en 4 archivos; comentarios → docstrings | Código autoexplicativo; estilo consistente | 56/56 ✅ | 6 |
 | 6 | Manejo de errores con TDD (prueba en rojo → fix mínimo → iteración UTF-8) | `with`, excepciones específicas, validación antes de mutar, errores como constantes | Carga atómica; ningún error se traga ni deja el sistema a medias | 64/64 ✅ | 2 |
+| 7 | Separar E/S de reportes + biblioteca estándar, con verificación diferencial contra el original | Reportes sin `print`; burbuja → `sorted`; `sum`, `Counter`, comprehensions | Responsabilidad única, reutilizable, O(n log n) | 64/64 ✅ + diff idéntico | 2 |
 
 ---
 
@@ -461,3 +462,57 @@ esta corrupto"). Ningún caso que antes funcionaba cambió.
 **Validación:** 8 pruebas nuevas en verde → `pytest` **64 passed**
 (`docs/evidencia/r6_tdd_verde.log`); `ruff` 6 → **2** (desaparecen 2×SIM115,
 UP015, SIM103). Quedan I001 y C901 de `main.py` (refactorización 8).
+
+---
+
+## Refactorización 7 — Separar lógica de E/S en reportes y simplificar
+
+**Prompt:**
+
+```text
+Refactorización 7 (reportes.py): las funciones reporte_inventario y
+resumen_ventas imprimen Y regresan el texto. Haz que solo regresen el texto y
+que main.py sea quien imprima (print(reportes.reporte_inventario())), de modo
+que la salida en consola sea idéntica.
+Aprovecha para simplificar con la biblioteca estándar:
+- burbuja manual (tiene un TODO) -> sorted(..., reverse=True); conserva el
+  orden de los empates (explica por qué sorted lo garantiza);
+- acumuladores manuales -> sum() y Counter;
+- concatenación s = s + ... -> lista de líneas + "\n".join;
+- extrae tiene_stock_bajo(producto) porque la condición se repite 2 veces;
+- buscarProducto en gestor.py -> list comprehension.
+Restricción: el texto de los reportes debe ser idéntico byte a byte (incluido
+"$0" con el inventario vacío). No toques el menú más allá de los 2 print.
+```
+
+**Verificación adicional (diferencial):** como las pruebas revisan el
+contenido pero no cada salto de línea del menú, escribí
+`docs/evidencia/comparar_menu.py`: corre el menú de la versión original
+(`git worktree` del commit inicial) y de la refactorizada con la **misma
+secuencia de 41 entradas** (ventas VIP, errores, cotización, número
+inválido, todos los reportes, guardar) y compara las salidas.
+Resultado: **206 líneas idénticas** (`docs/evidencia/r7_diff_menu.log`).
+
+**Cambio:**
+
+- `reporte_inventario` / `resumen_ventas`: ya no llaman `print`; `main`
+  imprime el resultado.
+- `mas_vendidos`: burbuja de 2 ciclos anidados → `Counter` + `sorted`.
+  `sorted` es estable (también con `reverse=True`), así que los empates
+  conservan el orden de primera venta, igual que la burbuja (que solo
+  intercambiaba con `<` estricto). Cubierto por
+  `test_mas_vendidos_default_tres_y_empates_en_orden_de_aparicion`.
+- `total_vendido`, valor del inventario, total del día → `sum()`.
+- Nuevos `tiene_stock_bajo` y `_linea_de_inventario`; `MARCA_STOCK_BAJO`
+  como constante.
+- `buscarProducto` → list comprehension.
+
+**Justificación:** una función que imprime no se puede reutilizar para
+escribir un archivo, enviarlo por correo o probarlo sin capturar stdout:
+separar cálculo de presentación sigue el principio de responsabilidad única.
+La biblioteca estándar (`sorted`, `sum`, `Counter`) está probada, es más
+rápida (O(n log n) contra O(n²) de la burbuja) y dice la intención en una
+línea.
+
+**Validación:** `pytest` **64 passed**; diferencial del menú idéntico;
+`ruff` **2** (sin cambio: solo quedan los de `main.py`).

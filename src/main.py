@@ -60,9 +60,9 @@ def menu():
             else:
                 print("Error:", gestor.ultimo_error)
         elif opcion == "4":
-            reportes.reporte_inventario()
+            print(reportes.reporte_inventario())
         elif opcion == "5":
-            reportes.resumen_ventas()
+            print(reportes.resumen_ventas())
         elif opcion == "6":
             for codigo, unidades in reportes.mas_vendidos():
                 print(codigo, "->", unidades, "unidades")
