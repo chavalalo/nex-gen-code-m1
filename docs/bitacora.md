@@ -13,6 +13,8 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | # | Prompt usado (resumen) | Cambio realizado | Justificación | Tests OK | Ruff |
 |---|------------------------|------------------|---------------|----------|------|
 | 0 | Configuración + diagnóstico (ver detalle) | `CLAUDE.md`, `.claudeignore`, `.claude/settings.json`, `docs/diagnostico.md` | Dar contexto y reglas al agente antes de tocar código | 20/20 ✅ | 20 errores (línea base) |
+| — | Pruebas de caracterización (red de seguridad) | `tests/test_caracterizacion.py` nuevo, 36 pruebas | Detectar cualquier cambio de comportamiento que los 20 tests no ven | 56/56 ✅ | 20 |
+| 1 | Eliminar código muerto verificando con grep | −40 líneas: 3 funciones muertas, global e import sin uso, encoding | Menos superficie, cero ambigüedad; git guarda el historial | 56/56 ✅ | 13 |
 
 ---
 
@@ -120,3 +122,64 @@ solo leerlo:
 
 `git status` después de explorar: solo archivos nuevos de configuración y
 documentación; ningún archivo de `src/` ni `tests/` cambió. ✅
+
+## Paso 3 — Red de seguridad: pruebas de caracterización
+
+**Prompt:**
+
+```text
+Antes de refactorizar, necesito una red de seguridad más fina que los 20 tests
+originales. Crea un archivo NUEVO tests/test_caracterizacion.py (no toques los
+existentes) con pruebas que fijen el comportamiento ACTUAL, no el que "debería"
+ser:
+- texto exacto del ticket con y sin descuento;
+- fronteras de descuento (499.99, 500, 999.99, 1000) y todas las reglas VIP
+  (minúsculas, prefijo, longitud < 3, None, umbral de 200);
+- cada mensaje de ultimo_error;
+- texto exacto de reporte_inventario y resumen_ventas; empates en mas_vendidos;
+- formato del JSON guardado y carga de archivos corruptos/inexistentes;
+- el menú completo simulando input() con monkeypatch y capsys.
+Usa parametrize. Solo prueba comportamiento observable (nada de detalles
+internos como contadorVentas, que vamos a renombrar). Corre la suite contra el
+código original: todo debe pasar sin tocar src/.
+```
+
+**Resultado:** 36 pruebas nuevas → **56 passed**.
+
+**Intento fallido y corrección:** la primera versión tenía un valor esperado
+mal calculado a mano (999.99 → total 1151.99). Al correr contra el código
+original falló (`1101.99 != 1151.99`): 999.99 − 50 = 949.99 → +16 % =
+1101.99. En una prueba de caracterización **el código original es la fuente
+de verdad**, así que se corrigió el valor esperado, no el código. Lección: las
+expectativas generadas (por la IA o por mí) también se validan.
+
+**Ajuste de prompt:** en la primera versión se usaba `gestor.contadorVentas`
+en las aserciones; se reemplazó por el folio observable para que la prueba no
+se rompa con el renombrado de la refactorización 5.
+
+---
+
+## Refactorización 1 — Eliminar código muerto
+
+**Prompt:**
+
+```text
+Refactorización 1 de docs/diagnostico.md: elimina el código muerto.
+Antes de borrar, demuestra con grep que nadie lo usa (src/ y tests/):
+calcular_descuento_viejo, el exportar_txt comentado, reporteViejoCSV,
+MODO_DEBUG, el import os sin usar de reportes.py y las declaraciones
+"# -*- coding: utf-8 -*-" (innecesarias en Python 3). Quita también el
+comentario histórico obsoleto del docstring de gestor.py.
+No cambies nada más. Corre pytest y ruff y muéstrame el diff.
+```
+
+**Cambio:** −40 líneas en 4 archivos. Se eliminaron 3 funciones/bloques que
+nadie llama, una variable global sin uso, un import sin usar y 4 declaraciones
+de encoding.
+
+**Justificación:** el código muerto confunde (¿se usa?, ¿hay que mantenerlo?),
+aumenta la superficie a leer y aparece en búsquedas. "Por si acaso" ya lo
+cubre git: cualquier versión anterior se puede recuperar del historial.
+
+**Validación:** `grep` sin usos → `pytest` **56 passed** → `ruff` 20 → **13 errores**
+(desaparecen F401, 4×UP009, N802 de `reporteViejoCSV` y un SIM115).
