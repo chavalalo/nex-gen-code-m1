@@ -5,12 +5,14 @@ vive en gestor.py, almacen.py y reportes.py.
 """
 
 from collections.abc import Callable
+from pathlib import Path
 
 import almacen
 import gestor
 import reportes
 
-ARCHIVO = "datos_ejemplo.json"
+# Ruta absoluta: funciona igual si se ejecuta desde src/ o desde la raiz
+ARCHIVO = str(Path(__file__).resolve().parent.parent / "datos_ejemplo.json")
 
 OPCIONES_MENU = (
     "1) Agregar producto",
@@ -126,10 +128,13 @@ OPCION_SALIR = "8"
 
 
 def cargar_datos_iniciales() -> None:
-    """Carga el archivo de datos si existe."""
-    if almacen.existe_archivo(ARCHIVO):
-        almacen.cargar_datos(ARCHIVO)
+    """Carga el archivo de datos si existe y avisa si no se pudo."""
+    if not almacen.existe_archivo(ARCHIVO):
+        return
+    if almacen.cargar_datos(ARCHIVO):
         print("Datos cargados de", ARCHIVO)
+    else:
+        print("No se pudieron cargar los datos:", gestor.ultimo_error)
 
 
 def imprimir_menu() -> None:

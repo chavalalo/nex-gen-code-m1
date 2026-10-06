@@ -23,6 +23,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 7 | Separar E/S de reportes + biblioteca estándar, con verificación diferencial contra el original | Reportes sin `print`; burbuja → `sorted`; `sum`, `Counter`, comprehensions | Responsabilidad única, reutilizable, O(n log n) | 64/64 ✅ + diff idéntico | 2 |
 | 8 | Menú → funciones por opción + diccionario de despacho, verificado con el diferencial | `menu()` complejidad 18 → 3; sin duplicación de errores ni de `int(pedir_numero())` | Abierto/cerrado: nueva opción = nueva función + 1 entrada | 64/64 ✅ + diff idéntico | **0** |
 | 9 | Type hints completos verificados con `mypy --strict` (pedir explicación antes de aceptar cambios) | `Producto`/`Venta` TypedDict; todas las funciones anotadas; mypy 82 → 0 | Contratos explícitos; esquema del JSON documentado en código | 64/64 ✅ | 0 |
+| fix | Bugs B3/B4 con TDD (decisión explícita de cambiar comportamiento) | Ruta absoluta con `pathlib`; aviso si la carga falla | El README funciona tal cual; el menú no miente al usuario | 66/66 ✅ | 0 |
 
 ---
 
@@ -605,3 +606,48 @@ en cada prompt.
 
 **Validación:** `pytest` **64 passed**; `ruff` **0**; `mypy --strict` **0**;
 diferencial del menú **idéntico**.
+
+---
+
+## Corrección de bugs B3 y B4 (commit `fix`, separado de las refactorizaciones)
+
+> Esto **no** es una refactorización: cambia el comportamiento a propósito.
+> Por eso va en un commit `fix:` aparte, con decisión explícita del autor
+> ("sí lo corregimos") y con pruebas en rojo primero.
+
+**Prompt:**
+
+```text
+Bug B3 del diagnóstico: el README dice `cd src && python main.py`, pero
+ARCHIVO = "datos_ejemplo.json" es relativo al directorio actual, así que
+desde src/ no encuentra los datos de ejemplo y al guardar crea otro archivo
+en src/. Además revisa qué imprime el menú si el archivo existe pero está
+corrupto.
+1. Escribe primero pruebas en un archivo nuevo tests/test_ruta_datos.py y
+   confirma que fallan.
+2. Corrige con el cambio mínimo: ruta absoluta construida con pathlib a partir
+   de __file__, y un mensaje de error si la carga falla.
+3. Corre pytest, ruff y mypy, y prueba manualmente `cd src && python main.py`.
+```
+
+**Hallazgo B4 (nuevo, encontrado con el prompt anterior):**
+`cargar_datos_iniciales` imprimía `"Datos cargados de ..."` aunque
+`cargar_datos` regresara `False` (archivo corrupto).
+
+**Rojo** (`docs/evidencia/fix_b3_b4_rojo.log`): 2 fallas
+(`PosixPath('datos_ejemplo.json') != <raíz>/datos_ejemplo.json` y
+"Datos cargados" presente con un archivo corrupto).
+
+**Cambio:**
+
+- `ARCHIVO = str(Path(__file__).resolve().parent.parent / "datos_ejemplo.json")`.
+- Si la carga falla: `No se pudieron cargar los datos: <motivo>`.
+
+**Prueba manual:** `cd src && python main.py` → `Datos cargados de
+.../datos_ejemplo.json` ✅.
+**Nota:** al elegir "Guardar y salir" el menú sobrescribe `datos_ejemplo.json`
+de la raíz (era la intención original al ejecutarlo desde la raíz). Para no
+modificar los datos de ejemplo del repo durante pruebas manuales, conviene
+restaurarlos con `git restore datos_ejemplo.json`.
+
+**Validación:** `pytest` **66 passed**; `ruff` **0**; `mypy --strict` **0**.
