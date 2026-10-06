@@ -18,6 +18,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 2 | Números mágicos → constantes, sin tocar la estructura | 13 constantes de negocio en `gestor.py`; `reportes` usa `STOCK_MINIMO` | Nombres que explican la regla; una sola fuente de verdad | 56/56 ✅ | 13 |
 | 3 | Extraer cálculo de precios duplicado (con CoT para demostrar equivalencia de floats) | `calcular_descuento_volumen`, `calcular_importes` → `Importes`; usadas por venta y cotización | DRY: venta y cotización ya no pueden divergir; lógica de precios aislada y probable | 56/56 ✅ | 11 |
 | 4 | Dividir `registrar_venta` + cláusulas de guarda (con lista de lo que NO debe cambiar) | 4 funciones extraídas; complejidad 12 → 2; VIP de 4 `if` a 1 | Responsabilidad única, sin efecto flecha, intención explícita | 56/56 ✅ | 8 |
+| 5 | Renombrado descriptivo + PEP 8 con few-shot de ejemplos y lista de nombres intocables | ~35 renombres en 4 archivos; comentarios → docstrings | Código autoexplicativo; estilo consistente | 56/56 ✅ | 6 |
 
 ---
 
@@ -333,3 +334,60 @@ intención directamente.
 
 **Validación:** `pytest` **56 passed**; `ruff` 11 → **8** (desaparecen los
 3 SIM102).
+
+---
+
+## Refactorización 5 — Nombres descriptivos y estilo PEP 8 consistente
+
+**Prompt (few-shot con la tabla de renombres como ejemplo del estilo esperado):**
+
+```text
+Refactorización 5: renombra variables y funciones crípticas siguiendo las
+convenciones de CLAUDE.md. Ejemplos del estilo que quiero:
+  x       -> producto        (dict de un producto)
+  temp2   -> coincidencias   (lista resultado de una búsqueda)
+  aux     -> nuevo_stock     (según lo que realmente guarda)
+  hacer_cosa -> formatear_moneda
+Aplica el mismo criterio a TODO src/: contadorVentas, hayArchivo, d, f, k,
+v, t, s, p, c, n, cant, cli, op, temp, par.
+Restricciones: NO renombres agregarProducto ni buscarProducto (los usan los
+tests) ni ninguna otra función pública de la lista de CLAUDE.md; no cambies
+textos impresos, claves de diccionarios ni la lógica (salvo iterar con
+.values() en vez de indexar por clave, que es el mismo recorrido). Busca y
+actualiza todos los llamadores de cada nombre que cambies. Al final, haz un
+grep de nombres de 1–2 letras para comprobar que no quedó ninguno.
+```
+
+**Cambio (tabla de renombres):**
+
+| Antes | Después | Archivo |
+|-------|---------|---------|
+| `contadorVentas` | `contador_ventas` | gestor, almacen |
+| `hayArchivo` | `existe_archivo` | almacen, main |
+| `hacer_cosa` | `formatear_moneda` | reportes |
+| `x` | literal `{...}` en `INVENTARIO[codigo]` | gestor |
+| `aux` | `nuevo_stock`, `valor_total`, `unidades_por_codigo` | gestor, reportes |
+| `temp2`, `temp` | `coincidencias`, `productos_bajos`, `ranking`, `respuesta` | gestor, reportes, main |
+| `d`, `f`, `k`, `v` | `datos`, `archivo`, `codigo`, `venta` | almacen, reportes |
+| `s`, `t` | `reporte`, `resumen`, `total`, `total_dia` | reportes |
+| `c`, `n`, `p`, `s`, `cant`, `cli`, `op` | `codigo`, `nombre`, `precio`, `stock`, `cantidad`, `cliente`, `opcion` | main |
+| `par[0]`, `par[1]` | desempaquetado `codigo, unidades` | main |
+| comentarios `# hace X` | docstrings | todos |
+
+**Justificación:** un nombre descriptivo elimina la necesidad de leer el
+cuerpo para entender qué guarda una variable (`aux` guardaba 3 cosas
+distintas en 3 funciones). PEP 8 exige `snake_case` para funciones y
+variables; mezclar `contadorVentas` y `ultimo_error` en el mismo módulo obliga
+a recordar cuál es cuál. Los comentarios de "qué hace" se volvieron
+docstrings, que sí aparecen en `help()` y en el IDE.
+
+**Problema encontrado y resuelto:** al renombrar en `mas_vendidos`, la línea
+`unidades_por_codigo[codigo] = unidades_por_codigo[codigo] + venta["cantidad"]`
+excedió 88 caracteres (**E501**, una regla que antes no fallaba). Se
+resolvió con `+=`, que es equivalente. Lección: los nombres largos tienen un
+costo y el linter lo detecta de inmediato; por eso se corre después de CADA
+cambio.
+
+**Validación:** `grep` de nombres cortos → solo falsos positivos
+(f-strings, `\n`); `pytest` **56 passed**; `ruff` 8 → **6** (desaparecen
+N802 y N816).
