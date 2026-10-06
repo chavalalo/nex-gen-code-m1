@@ -16,6 +16,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | — | Pruebas de caracterización (red de seguridad) | `tests/test_caracterizacion.py` nuevo, 36 pruebas | Detectar cualquier cambio de comportamiento que los 20 tests no ven | 56/56 ✅ | 20 |
 | 1 | Eliminar código muerto verificando con grep | −40 líneas: 3 funciones muertas, global e import sin uso, encoding | Menos superficie, cero ambigüedad; git guarda el historial | 56/56 ✅ | 13 |
 | 2 | Números mágicos → constantes, sin tocar la estructura | 13 constantes de negocio en `gestor.py`; `reportes` usa `STOCK_MINIMO` | Nombres que explican la regla; una sola fuente de verdad | 56/56 ✅ | 13 |
+| 3 | Extraer cálculo de precios duplicado (con CoT para demostrar equivalencia de floats) | `calcular_descuento_volumen`, `calcular_importes` → `Importes`; usadas por venta y cotización | DRY: venta y cotización ya no pueden divergir; lógica de precios aislada y probable | 56/56 ✅ | 11 |
 
 ---
 
@@ -225,3 +226,55 @@ cuál de los dos cambios lo rompió.
 **Validación:** `grep` → solo quedan literales en las definiciones;
 `pytest` **56 passed**; `ruff` **13** (sin cambio esperado: este paso no
 atacaba reglas de ruff).
+
+---
+
+## Refactorización 3 — Extraer el cálculo de precios duplicado
+
+**Prompt (con chain-of-thought para auditar la equivalencia):**
+
+```text
+Refactorización 3: registrar_venta y cotizar tienen copiado el cálculo de
+descuento por volumen + IVA. Extráelo a funciones reutilizables en gestor.py:
+- calcular_descuento_volumen(subtotal) -> descuento
+- calcular_importes(subtotal, cliente=None) -> NamedTuple Importes(descuento,
+  impuesto, total) que incluya la regla VIP.
+Ambas funciones públicas deben usar calcular_importes.
+
+Antes de escribir el código, razona paso a paso y muéstrame:
+1. Las expresiones exactas que calculan el total en cada función hoy.
+2. Por qué la versión extraída produce bit a bit el mismo float
+   (ojo: cotizar hace base + base*IVA y registrar_venta round(base+impuesto)).
+3. Qué pasa con cotizar y la regla VIP (no recibe cliente).
+Restricciones: el descuento sin volumen debe seguir siendo el entero 0 (se
+guarda en el JSON); no toques todavía la validación ni el ticket (paso 4);
+conserva temporalmente los if anidados de la regla VIP (se aplanan en el
+paso 4) para que el diff sea solo "mover código".
+```
+
+**Razonamiento verificado antes de aceptar:**
+
+1. `cotizar`: `round(base + base * 0.16, 2)`; `registrar_venta`:
+   `impuesto = base * 0.16; round(base + impuesto, 2)` → misma expresión,
+   mismo float.
+2. `cotizar` llama `calcular_importes(subtotal)` con `cliente=None` → la regla
+   VIP no aplica, igual que antes (el hallazgo B2 se conserva a propósito).
+3. `calcular_descuento_volumen` regresa `0` (entero) cuando no hay
+   descuento, igual que el original; así el JSON guardado no cambia de `0` a
+   `0.0`.
+
+**Cambio:** nuevas `Importes` (NamedTuple), `calcular_descuento_volumen` y
+`calcular_importes`. `cotizar` pasó de 10 líneas de cálculo a 2.
+`registrar_venta` delega todo el cálculo en una línea.
+
+**Justificación:** DRY. Antes, cambiar una tasa de descuento requería editar
+dos funciones, y si se olvidaba una, la cotización y la venta darían montos
+distintos (justo lo que vigila `test_cotizar_coincide_con_el_total_de_la_venta`).
+Ahora es imposible que diverjan. Además, el cálculo de precios ya se puede
+probar de forma aislada, sin inventario ni estado global.
+
+**Efecto colateral positivo:** al extraer el bloque, `registrar_venta` bajó
+de complejidad 12 a < 10 y desaparecieron **C901** y **SIM108** sin
+atacarlas directamente.
+
+**Validación:** `pytest` **56 passed**; `ruff` 13 → **11**.

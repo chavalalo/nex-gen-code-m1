@@ -1,6 +1,7 @@
 """Logica de negocio del gestor de inventario y ventas de "La Esquina"."""
 
 from datetime import datetime
+from typing import NamedTuple
 
 # ---------------------------------------------------------------
 # Reglas de negocio
@@ -101,6 +102,42 @@ def buscarProducto(texto):
     return temp2
 
 
+class Importes(NamedTuple):
+    """Montos calculados de una compra (sin redondear, salvo el total)."""
+
+    descuento: float
+    impuesto: float
+    total: float
+
+
+def calcular_descuento_volumen(subtotal):
+    """Regresa el descuento por volumen que corresponde a un subtotal."""
+    if subtotal >= UMBRAL_DESCUENTO_ALTO:
+        return subtotal * TASA_DESCUENTO_ALTO
+    if subtotal >= UMBRAL_DESCUENTO_MEDIO:
+        return subtotal * TASA_DESCUENTO_MEDIO
+    return 0
+
+
+def calcular_importes(subtotal, cliente=None):
+    """Calcula descuento, IVA y total de una compra.
+
+    Es la unica fuente de verdad de los precios: la usan tanto
+    registrar_venta como cotizar.
+    """
+    desc = calcular_descuento_volumen(subtotal)
+    # los clientes cuyo codigo empieza con VIP tienen un extra,
+    # pero solo si su compra (ya con descuento) pasa de cierto monto
+    if cliente != "" and cliente is not None:
+        if len(cliente) >= len(PREFIJO_CLIENTE_VIP):
+            if cliente[0 : len(PREFIJO_CLIENTE_VIP)] == PREFIJO_CLIENTE_VIP:
+                if subtotal - desc > MONTO_MINIMO_VIP:
+                    desc = desc + subtotal * TASA_DESCUENTO_VIP
+    base = subtotal - desc
+    impuesto = base * TASA_IVA
+    return Importes(desc, impuesto, round(base + impuesto, 2))
+
+
 def registrar_venta(codigo, cantidad, cliente=""):
     """Registra una venta completa.
 
@@ -130,25 +167,7 @@ def registrar_venta(codigo, cantidad, cliente=""):
         return None
     # calculo del subtotal
     aux = temp2["precio"] * cantidad
-    # descuentos por volumen de compra
-    desc = 0
-    if aux >= UMBRAL_DESCUENTO_ALTO:
-        desc = aux * TASA_DESCUENTO_ALTO
-    else:
-        if aux >= UMBRAL_DESCUENTO_MEDIO:
-            desc = aux * TASA_DESCUENTO_MEDIO
-        else:
-            desc = 0
-    # los clientes cuyo codigo empieza con VIP tienen un extra,
-    # pero solo si su compra (ya con descuento) pasa de cierto monto
-    if cliente != "" and cliente is not None:
-        if len(cliente) >= len(PREFIJO_CLIENTE_VIP):
-            if cliente[0 : len(PREFIJO_CLIENTE_VIP)] == PREFIJO_CLIENTE_VIP:
-                if aux - desc > MONTO_MINIMO_VIP:
-                    desc = desc + aux * TASA_DESCUENTO_VIP
-    base = aux - desc
-    impuesto = base * TASA_IVA
-    total = round(base + impuesto, 2)
+    desc, impuesto, total = calcular_importes(aux, cliente)
     # descontar del inventario
     temp2["stock"] = temp2["stock"] - cantidad
     contadorVentas = contadorVentas + 1
@@ -188,13 +207,5 @@ def cotizar(codigo, cantidad):
     if cantidad is None or cantidad <= 0:
         ultimo_error = "cantidad invalida"
         return None
-    aux = INVENTARIO[codigo]["precio"] * cantidad
-    desc = 0
-    if aux >= UMBRAL_DESCUENTO_ALTO:
-        desc = aux * TASA_DESCUENTO_ALTO
-    else:
-        if aux >= UMBRAL_DESCUENTO_MEDIO:
-            desc = aux * TASA_DESCUENTO_MEDIO
-    base = aux - desc
-    total = base + base * TASA_IVA
-    return round(total, 2)
+    subtotal = INVENTARIO[codigo]["precio"] * cantidad
+    return calcular_importes(subtotal).total
