@@ -10,20 +10,23 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 
 ## Resumen
 
-| # | Prompt usado (resumen) | Cambio realizado | Justificación | Tests OK | Ruff |
-|---|------------------------|------------------|---------------|----------|------|
-| 0 | Configuración + diagnóstico (ver detalle) | `CLAUDE.md`, `.claudeignore`, `.claude/settings.json`, `docs/diagnostico.md` | Dar contexto y reglas al agente antes de tocar código | 20/20 ✅ | 20 errores (línea base) |
-| — | Pruebas de caracterización (red de seguridad) | `tests/test_caracterizacion.py` nuevo, 36 pruebas | Detectar cualquier cambio de comportamiento que los 20 tests no ven | 56/56 ✅ | 20 |
-| 1 | Eliminar código muerto verificando con grep | −40 líneas: 3 funciones muertas, global e import sin uso, encoding | Menos superficie, cero ambigüedad; git guarda el historial | 56/56 ✅ | 13 |
-| 2 | Números mágicos → constantes, sin tocar la estructura | 13 constantes de negocio en `gestor.py`; `reportes` usa `STOCK_MINIMO` | Nombres que explican la regla; una sola fuente de verdad | 56/56 ✅ | 13 |
-| 3 | Extraer cálculo de precios duplicado (con CoT para demostrar equivalencia de floats) | `calcular_descuento_volumen`, `calcular_importes` → `Importes`; usadas por venta y cotización | DRY: venta y cotización ya no pueden divergir; lógica de precios aislada y probable | 56/56 ✅ | 11 |
-| 4 | Dividir `registrar_venta` + cláusulas de guarda (con lista de lo que NO debe cambiar) | 4 funciones extraídas; complejidad 12 → 2; VIP de 4 `if` a 1 | Responsabilidad única, sin efecto flecha, intención explícita | 56/56 ✅ | 8 |
-| 5 | Renombrado descriptivo + PEP 8 con few-shot de ejemplos y lista de nombres intocables | ~35 renombres en 4 archivos; comentarios → docstrings | Código autoexplicativo; estilo consistente | 56/56 ✅ | 6 |
-| 6 | Manejo de errores con TDD (prueba en rojo → fix mínimo → iteración UTF-8) | `with`, excepciones específicas, validación antes de mutar, errores como constantes | Carga atómica; ningún error se traga ni deja el sistema a medias | 64/64 ✅ | 2 |
-| 7 | Separar E/S de reportes + biblioteca estándar, con verificación diferencial contra el original | Reportes sin `print`; burbuja → `sorted`; `sum`, `Counter`, comprehensions | Responsabilidad única, reutilizable, O(n log n) | 64/64 ✅ + diff idéntico | 2 |
-| 8 | Menú → funciones por opción + diccionario de despacho, verificado con el diferencial | `menu()` complejidad 18 → 3; sin duplicación de errores ni de `int(pedir_numero())` | Abierto/cerrado: nueva opción = nueva función + 1 entrada | 64/64 ✅ + diff idéntico | **0** |
-| 9 | Type hints completos verificados con `mypy --strict` (pedir explicación antes de aceptar cambios) | `Producto`/`Venta` TypedDict; todas las funciones anotadas; mypy 82 → 0 | Contratos explícitos; esquema del JSON documentado en código | 64/64 ✅ | 0 |
-| fix | Bugs B3/B4 con TDD (decisión explícita de cambiar comportamiento) | Ruta absoluta con `pathlib`; aviso si la carga falla | El README funciona tal cual; el menú no miente al usuario | 66/66 ✅ | 0 |
+> Cada fila corresponde a un commit de la rama `refactorizacion`; se puede ver
+> su diff con `git show <commit>`. Todos los commits pasan `pytest`.
+
+| # | Prompt usado (resumen) | Cambio realizado | Justificación | Tests OK | Ruff | Commit |
+|---|------------------------|------------------|---------------|----------|------|--------|
+| 0 | Configuración + diagnóstico (ver detalle) | `CLAUDE.md`, `.claudeignore`, `.claude/settings.json`, `docs/diagnostico.md` | Dar contexto y reglas al agente antes de tocar código | 20/20 ✅ | 20 errores (línea base) | `8d11c18, 53b376b` |
+| — | Pruebas de caracterización (red de seguridad) | `tests/test_caracterizacion.py` nuevo, 36 pruebas | Detectar cualquier cambio de comportamiento que los 20 tests no ven | 56/56 ✅ | 20 | `33e32cc` |
+| 1 | Eliminar código muerto verificando con grep | −40 líneas: 3 funciones muertas, global e import sin uso, encoding | Menos superficie, cero ambigüedad; git guarda el historial | 56/56 ✅ | 13 | `9d654b3` |
+| 2 | Números mágicos → constantes, sin tocar la estructura | 13 constantes de negocio en `gestor.py`; `reportes` usa `STOCK_MINIMO` | Nombres que explican la regla; una sola fuente de verdad | 56/56 ✅ | 13 | `c1c4b46` |
+| 3 | Extraer cálculo de precios duplicado (con CoT para demostrar equivalencia de floats) | `calcular_descuento_volumen`, `calcular_importes` → `Importes`; usadas por venta y cotización | DRY: venta y cotización ya no pueden divergir; lógica de precios aislada y fácil de probar | 56/56 ✅ | 11 | `1c2348c` |
+| 4 | Dividir `registrar_venta` + cláusulas de guarda (con lista de lo que NO debe cambiar) | 4 funciones extraídas; complejidad 12 → 2; VIP de 4 `if` a 1 | Responsabilidad única, sin efecto flecha, intención explícita | 56/56 ✅ | 8 | `0dd4c4e` |
+| 5 | Renombrado descriptivo + PEP 8 con few-shot de ejemplos y lista de nombres intocables | ~35 renombres en 4 archivos; comentarios → docstrings | Código autoexplicativo; estilo consistente | 56/56 ✅ | 6 | `4a26b92` |
+| 6 | Manejo de errores con TDD (prueba en rojo → fix mínimo → iteración UTF-8) | `with`, excepciones específicas, validación antes de mutar, errores como constantes | Carga atómica; ningún error se traga ni deja el sistema a medias | 64/64 ✅ | 2 | `d6f800f` |
+| 7 | Separar E/S de reportes + biblioteca estándar, con verificación diferencial contra el original | Reportes sin `print`; burbuja → `sorted`; `sum`, `Counter`, comprehensions | Responsabilidad única, reutilizable, O(n log n) | 64/64 ✅ + diff idéntico | 2 | `cbacb7e` |
+| 8 | Menú → funciones por opción + diccionario de despacho, verificado con el diferencial | `menu()` complejidad 18 → 3; sin duplicación de errores ni de `int(pedir_numero())` | Abierto/cerrado: nueva opción = nueva función + 1 entrada | 64/64 ✅ + diff idéntico | **0** | `5d3380f` |
+| 9 | Type hints completos verificados con `mypy --strict` (pedir explicación antes de aceptar cambios) | `Producto`/`Venta` TypedDict; todas las funciones anotadas; mypy 82 → 0 | Contratos explícitos; esquema del JSON documentado en código | 64/64 ✅ | 0 | `9480914` |
+| fix | Bugs B3/B4 con TDD (decisión explícita de cambiar comportamiento) | Ruta absoluta con `pathlib`; aviso si la carga falla | El README funciona tal cual; el menú no miente al usuario | 66/66 ✅ | 0 | `b78a3ed` |
 
 ---
 
