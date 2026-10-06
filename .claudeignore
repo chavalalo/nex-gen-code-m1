@@ -1,0 +1,36 @@
+# .claudeignore — lo que Claude Code no necesita leer
+# Nota: .claudeignore no es parte de la documentación oficial de Claude Code;
+# las exclusiones que el cliente SÍ aplica están en .claude/settings.json
+# (permissions.deny). Este archivo se mantiene porque lo pide el reto.
+
+# Entornos virtuales y dependencias (miles de archivos, cero valor)
+.venv/
+venv/
+env/
+
+# Cachés y artefactos generados
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Datos generados al usar el menú (no son código)
+src/datos_ejemplo.json
+*.log
+
+# Secretos: el agente jamás debe leerlos
+.env
+.env.*
+
+# Basura del sistema operativo / editores / sincronización
+.DS_Store
+.idea/
+.vscode/
+*.docx
+*.pdf

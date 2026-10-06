@@ -1,0 +1,18 @@
+E       KeyError: 'inventario'
+E       KeyError: 'ventas'
+E       TypeError: list indices must be integers or slices, not str
+E       AssertionError: assert True is False
+E        +  where True = <function cargar_datos at 0x7f7adf4d7880>('/tmp/pytest-of-root/pytest-10/test_cargar_json_con_estructur3/d.json')
+E        +    where <function cargar_datos at 0x7f7adf4d7880> = almacen.cargar_datos
+E        +    and   '/tmp/pytest-of-root/pytest-10/test_cargar_json_con_estructur3/d.json' = str(PosixPath('/tmp/pytest-of-root/pytest-10/test_cargar_json_con_estructur3/d.json'))
+E       IsADirectoryError: [Errno 21] Is a directory: '/tmp/pytest-of-root/pytest-10/test_cargar_un_directorio_regr0'
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-root/pytest-10/test_guardar_en_ruta_invalida_0/no_existe/d.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-root/pytest-10/test_menu_avisa_si_no_pudo_gua0/no_existe/d.json'
+FAILED tests/test_manejo_errores.py::test_cargar_json_con_estructura_invalida_regresa_false[{"otra": 1}]
+FAILED tests/test_manejo_errores.py::test_cargar_json_con_estructura_invalida_regresa_false[{"inventario": {}}]
+FAILED tests/test_manejo_errores.py::test_cargar_json_con_estructura_invalida_regresa_false[[]]
+FAILED tests/test_manejo_errores.py::test_cargar_json_con_estructura_invalida_regresa_false[{"inventario": [], "ventas": []}]
+FAILED tests/test_manejo_errores.py::test_cargar_un_directorio_regresa_false
+FAILED tests/test_manejo_errores.py::test_guardar_en_ruta_invalida_regresa_false
+FAILED tests/test_manejo_errores.py::test_menu_avisa_si_no_pudo_guardar - Fil...
+7 failed in 0.05s

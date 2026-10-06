@@ -1,0 +1,6 @@
+E       AssertionError: assert PosixPath('datos_ejemplo.json') == (PosixPath('/home/claude/reto') / 'datos_ejemplo.json')
+E        +  where PosixPath('datos_ejemplo.json') = Path('datos_ejemplo.json')
+E        +    where 'datos_ejemplo.json' = main.ARCHIVO
+E       AssertionError: assert 'Datos cargados' not in 'Bienvenido ...sta luego.\n'
+E         
+E         'Datos cargados' is contained here:
