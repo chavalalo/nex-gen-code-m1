@@ -1,7 +1,7 @@
 # Bitácora de refactorización
 
 **Nombre:** Salvador Razo
-**Matrícula:**
+**Matrícula:** salvador.razo@nuvem.mx
 **Fecha de inicio:** 2026-10-05
 **Herramienta:** Claude (agente de código) con `CLAUDE.md` + `.claude/settings.json`
 
