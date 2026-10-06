@@ -11,7 +11,7 @@ ERROR_LECTURA = "no se pudo leer el archivo"
 ERROR_ESCRITURA = "no se pudo guardar el archivo"
 
 
-def guardar_datos(ruta):
+def guardar_datos(ruta: str) -> bool:
     """Guarda el inventario, las ventas y el folio actual en un JSON.
 
     Regresa False (y deja el motivo en gestor.ultimo_error) si no se puede
@@ -31,7 +31,7 @@ def guardar_datos(ruta):
     return True
 
 
-def _tiene_estructura_valida(datos):
+def _tiene_estructura_valida(datos: object) -> bool:
     """Revisa que el JSON tenga las secciones que el gestor necesita."""
     return (
         isinstance(datos, dict)
@@ -40,7 +40,7 @@ def _tiene_estructura_valida(datos):
     )
 
 
-def cargar_datos(ruta):
+def cargar_datos(ruta: str) -> bool:
     """Lee el archivo JSON y deja los datos en el estado global.
 
     Regresa False si el archivo no existe, no se puede leer o esta corrupto;
@@ -72,6 +72,6 @@ def cargar_datos(ruta):
     return True
 
 
-def existe_archivo(ruta):
+def existe_archivo(ruta: str) -> bool:
     """Indica si ya existe el archivo de datos."""
     return os.path.exists(ruta)

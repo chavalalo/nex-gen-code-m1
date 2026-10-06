@@ -11,6 +11,8 @@ observable. La suite de `tests/` es de caja negra y es la fuente de verdad.
 pytest -q                 # deben pasar TODOS (20 originales + los nuevos)
 ruff check src            # meta final: 0 errores
 ruff check src --fix      # solo para fixes triviales (imports, encoding)
+cd src && mypy --strict . # opcional: verifica los type hints (0 errores)
+python docs/evidencia/comparar_menu.py src datos_ejemplo.json  # salida del menú
 cd src && python main.py  # prueba manual del menú (opcional)
 ```
 
@@ -21,7 +23,8 @@ cd src && python main.py  # prueba manual del menú (opcional)
 | `src/gestor.py` | Estado global (`INVENTARIO`, `VENTAS`, folio) + reglas de productos y ventas |
 | `src/almacen.py` | Guardar / cargar el estado en JSON |
 | `src/reportes.py` | Reportes de inventario, ventas y más vendidos |
-| `src/main.py` | Menú interactivo (única capa que usa `input`/`print`) |
+| `src/main.py` | Menú interactivo (única capa que usa `input`/`print`); una función `opcion_*` por opción + diccionario `ACCIONES` |
+| `tests/test_caracterizacion.py`, `tests/test_manejo_errores.py` | Pruebas agregadas en el reto (sí se pueden ampliar) |
 
 ## Reglas que NO se negocian
 
@@ -63,6 +66,10 @@ cd src && python main.py  # prueba manual del menú (opcional)
 - Capturar excepciones concretas (`json.JSONDecodeError`, `OSError`), nunca
   `except Exception` genérico.
 - Lógica sin `print`/`input`: solo `main.py` habla con la consola.
+- Valida los datos externos (JSON, entrada del usuario) ANTES de modificar el
+  estado global: o se aplica todo o no cambia nada.
+- Usa los tipos del proyecto: `gestor.Producto`, `gestor.Venta` (TypedDict) e
+  `Importes` (NamedTuple) en lugar de `dict` genérico.
 
 ## Formato de commits (Conventional Commits, en español)
 
@@ -82,3 +89,8 @@ docs: registra la refactorización 3 en la bitácora
 ## Historial de este archivo
 
 - v1: versión inicial (comandos, reglas, convenciones).
+- v2 (al cerrar la refactorización 9): se incorporaron lecciones del proceso
+  para no repetirlas en cada prompt: pruebas NUEVAS para TDD (R6), validar
+  antes de mutar el estado (R6), verificación diferencial del menú porque los
+  tests no revisan cada salto de línea (R7), `mypy --strict` y los tipos
+  `Producto`/`Venta`/`Importes` como vocabulario del proyecto (R9).

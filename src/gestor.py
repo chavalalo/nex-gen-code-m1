@@ -1,7 +1,7 @@
 """Logica de negocio del gestor de inventario y ventas de "La Esquina"."""
 
 from datetime import datetime
-from typing import NamedTuple
+from typing import NamedTuple, TypedDict
 
 # ---------------------------------------------------------------
 # Reglas de negocio
@@ -27,16 +27,51 @@ NOMBRE_TIENDA = "TIENDA LA ESQUINA"
 SEPARADOR_TICKET = "-" * 28
 FORMATO_FECHA = "%Y-%m-%d %H:%M:%S"
 
+
+
+class Producto(TypedDict):
+    """Producto del inventario (asi se guarda tambien en el JSON)."""
+
+    codigo: str
+    nombre: str
+    precio: float
+    stock: int
+
+
+class Venta(TypedDict):
+    """Registro de una venta (asi se guarda tambien en el JSON)."""
+
+    folio: int
+    codigo: str
+    nombre: str
+    cantidad: int
+    subtotal: float
+    descuento: float
+    impuesto: float
+    total: float
+    cliente: str | None
+    fecha: str
+    ticket: str
+
+
+class Importes(NamedTuple):
+    """Montos calculados de una compra (sin redondear, salvo el total)."""
+
+    descuento: float
+    impuesto: float
+    total: float
+
+
 # ---------------------------------------------------------------
 # Estado global de la aplicacion (inventario, ventas y contadores)
 # ---------------------------------------------------------------
-INVENTARIO = {}
-VENTAS = []
-contador_ventas = 0
-ultimo_error = ""
+INVENTARIO: dict[str, Producto] = {}
+VENTAS: list[Venta] = []
+contador_ventas: int = 0
+ultimo_error: str = ""
 
 
-def reiniciar_sistema():
+def reiniciar_sistema() -> None:
     """Borra todo el estado del sistema (inventario, ventas y folios)."""
     global contador_ventas, ultimo_error
     INVENTARIO.clear()
@@ -45,7 +80,9 @@ def reiniciar_sistema():
     ultimo_error = ""
 
 
-def agregarProducto(codigo, nombre, precio, stock):
+def agregarProducto(
+    codigo: str | None, nombre: str, precio: float, stock: int
+) -> bool:
     """Da de alta un producto. Regresa False si algun dato es invalido."""
     global ultimo_error
     if codigo is None or codigo == "":
@@ -69,7 +106,7 @@ def agregarProducto(codigo, nombre, precio, stock):
     return True
 
 
-def eliminar_producto(codigo):
+def eliminar_producto(codigo: str) -> bool:
     """Quita un producto del inventario. Regresa False si no existe."""
     global ultimo_error
     if codigo in INVENTARIO:
@@ -79,7 +116,7 @@ def eliminar_producto(codigo):
     return False
 
 
-def actualizar_stock(codigo, cantidad):
+def actualizar_stock(codigo: str, cantidad: int) -> bool:
     """Suma unidades al stock (o resta si la cantidad es negativa)."""
     global ultimo_error
     if codigo not in INVENTARIO:
@@ -93,8 +130,8 @@ def actualizar_stock(codigo, cantidad):
     return True
 
 
-def buscarProducto(texto):
-    """Regresa los productos cuyo nombre contiene el texto (sin importar mayusculas)."""
+def buscarProducto(texto: str) -> list[Producto]:
+    """Regresa los productos cuyo nombre contiene el texto (ignora mayusculas)."""
     texto_buscado = texto.lower()
     return [
         producto
@@ -103,15 +140,7 @@ def buscarProducto(texto):
     ]
 
 
-class Importes(NamedTuple):
-    """Montos calculados de una compra (sin redondear, salvo el total)."""
-
-    descuento: float
-    impuesto: float
-    total: float
-
-
-def calcular_descuento_volumen(subtotal):
+def calcular_descuento_volumen(subtotal: float) -> float:
     """Regresa el descuento por volumen que corresponde a un subtotal."""
     if subtotal >= UMBRAL_DESCUENTO_ALTO:
         return subtotal * TASA_DESCUENTO_ALTO
@@ -120,12 +149,12 @@ def calcular_descuento_volumen(subtotal):
     return 0
 
 
-def es_cliente_vip(cliente):
+def es_cliente_vip(cliente: str | None) -> bool:
     """Indica si el codigo de cliente tiene el prefijo VIP."""
-    return bool(cliente) and cliente.startswith(PREFIJO_CLIENTE_VIP)
+    return cliente is not None and cliente.startswith(PREFIJO_CLIENTE_VIP)
 
 
-def calcular_importes(subtotal, cliente=None):
+def calcular_importes(subtotal: float, cliente: str | None = None) -> Importes:
     """Calcula descuento, IVA y total de una compra.
 
     Es la unica fuente de verdad de los precios: la usan tanto
@@ -140,7 +169,7 @@ def calcular_importes(subtotal, cliente=None):
     return Importes(descuento, impuesto, round(base + impuesto, 2))
 
 
-def _validar_venta(codigo, cantidad):
+def _validar_venta(codigo: str | None, cantidad: int | None) -> str | None:
     """Regresa el motivo por el que la venta no procede, o None si es valida."""
     if codigo is None or codigo == "":
         return "codigo vacio"
@@ -153,7 +182,7 @@ def _validar_venta(codigo, cantidad):
     return None
 
 
-def _armar_ticket(venta, hubo_descuento):
+def _armar_ticket(venta: Venta, hubo_descuento: bool) -> str:
     """Arma el ticket en texto plano de una venta ya registrada."""
     lineas = [
         NOMBRE_TIENDA,
@@ -169,14 +198,16 @@ def _armar_ticket(venta, hubo_descuento):
     return "\n".join(lineas) + "\n"
 
 
-def _siguiente_folio():
+def _siguiente_folio() -> int:
     """Incrementa el contador de ventas y regresa el nuevo folio."""
     global contador_ventas
     contador_ventas = contador_ventas + 1
     return contador_ventas
 
 
-def registrar_venta(codigo, cantidad, cliente=""):
+def registrar_venta(
+    codigo: str | None, cantidad: int | None, cliente: str | None = ""
+) -> Venta | None:
     """Registra una venta: valida, cobra, descuenta stock y genera el ticket.
 
     Regresa el diccionario de la venta, o None si no procede (el motivo
@@ -187,13 +218,15 @@ def registrar_venta(codigo, cantidad, cliente=""):
     if error is not None:
         ultimo_error = error
         return None
+    # _validar_venta ya garantizo que ambos tienen valor
+    assert codigo is not None and cantidad is not None
 
     producto = INVENTARIO[codigo]
     subtotal = producto["precio"] * cantidad
     importes = calcular_importes(subtotal, cliente)
     producto["stock"] = producto["stock"] - cantidad
 
-    venta = {
+    venta: Venta = {
         "folio": _siguiente_folio(),
         "codigo": codigo,
         "nombre": producto["nombre"],
@@ -204,13 +237,14 @@ def registrar_venta(codigo, cantidad, cliente=""):
         "total": importes.total,
         "cliente": cliente,
         "fecha": datetime.now().strftime(FORMATO_FECHA),
+        "ticket": "",
     }
     venta["ticket"] = _armar_ticket(venta, hubo_descuento=importes.descuento > 0)
     VENTAS.append(venta)
     return venta
 
 
-def cotizar(codigo, cantidad):
+def cotizar(codigo: str, cantidad: int | None) -> float | None:
     """Calcula cuanto costaria una compra sin registrar la venta."""
     global ultimo_error
     if codigo not in INVENTARIO:

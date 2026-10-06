@@ -22,6 +22,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 6 | Manejo de errores con TDD (prueba en rojo → fix mínimo → iteración UTF-8) | `with`, excepciones específicas, validación antes de mutar, errores como constantes | Carga atómica; ningún error se traga ni deja el sistema a medias | 64/64 ✅ | 2 |
 | 7 | Separar E/S de reportes + biblioteca estándar, con verificación diferencial contra el original | Reportes sin `print`; burbuja → `sorted`; `sum`, `Counter`, comprehensions | Responsabilidad única, reutilizable, O(n log n) | 64/64 ✅ + diff idéntico | 2 |
 | 8 | Menú → funciones por opción + diccionario de despacho, verificado con el diferencial | `menu()` complejidad 18 → 3; sin duplicación de errores ni de `int(pedir_numero())` | Abierto/cerrado: nueva opción = nueva función + 1 entrada | 64/64 ✅ + diff idéntico | **0** |
+| 9 | Type hints completos verificados con `mypy --strict` (pedir explicación antes de aceptar cambios) | `Producto`/`Venta` TypedDict; todas las funciones anotadas; mypy 82 → 0 | Contratos explícitos; esquema del JSON documentado en código | 64/64 ✅ | 0 |
 
 ---
 
@@ -553,3 +554,54 @@ de despacho es el patrón idiomático de Python para reemplazar un
 **Validación:** `pytest` **64 passed**; diferencial del menú: **idéntico**;
 `ruff check src` → **All checks passed! (0 errores)** 🎉
 (`docs/evidencia/r8_ruff.log`).
+
+---
+
+## Refactorización 9 — Type hints en todas las funciones
+
+**Prompt:**
+
+```text
+Refactorización 9: agrega type hints a TODAS las funciones de src/ con la
+sintaxis de Python 3.10 (str | None, list[...], dict[...]).
+- Define en gestor.py TypedDict Producto y Venta con las claves exactas que
+  hoy se guardan en el JSON, y anota INVENTARIO, VENTAS y los globales.
+- Los parámetros que hoy aceptan None (codigo, cantidad, cliente) deben
+  reflejarlo en el tipo; no cambies las validaciones.
+- Verifica con `mypy --strict --python-version 3.10` (corre primero para tener
+  la línea base de errores). Si mypy pide cambiar código, propón la versión
+  equivalente y explícame por qué es equivalente antes de aplicarla.
+Restricción: cero cambios de comportamiento; las claves del dict de la venta
+en el mismo orden.
+```
+
+**Cambio:** tipos `Producto` y `Venta` (TypedDict); todas las funciones de
+los 4 módulos anotadas; `ACCIONES: dict[str, Callable[[], None]]`.
+`mypy --strict`: **82 → 0 errores** (`docs/evidencia/r9_mypy.log`).
+
+**Ajustes que pidió el verificador de tipos (y por qué son equivalentes):**
+
+1. `es_cliente_vip`: `bool(cliente) and cliente.startswith("VIP")` →
+   `cliente is not None and cliente.startswith("VIP")`. mypy no deduce de
+   `bool()` que no es `None`. Para `""` la nueva versión evalúa
+   `"".startswith("VIP")` → `False`, igual que antes.
+2. El dict de la venta ahora se crea con `"ticket": ""` y después se llena,
+   para cumplir con el `TypedDict` completo; la clave queda en la misma
+   posición (última), así que el JSON guardado no cambia.
+3. `assert codigo is not None and cantidad is not None` después de
+   `_validar_venta`, solo para que el verificador sepa lo que la validación ya
+   garantizó (nunca se dispara).
+
+**Justificación:** los tipos documentan el contrato de cada función
+(`registrar_venta` puede regresar `None`; `cotizar` regresa `float | None`) y
+permiten que el IDE y mypy detecten errores antes de ejecutar. `Producto` y
+`Venta` hacen explícito el esquema del JSON, que antes solo existía
+implícitamente repartido en el código.
+
+**Actualización de `CLAUDE.md` (v2):** se agregaron `mypy`, el
+diferencial del menú, la regla de "validar antes de mutar" y los tipos del
+proyecto, para que las siguientes sesiones los usen sin tener que repetirlo
+en cada prompt.
+
+**Validación:** `pytest` **64 passed**; `ruff` **0**; `mypy --strict` **0**;
+diferencial del menú **idéntico**.

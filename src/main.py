@@ -4,6 +4,8 @@ Este es el unico modulo que lee del teclado e imprime en pantalla; la logica
 vive en gestor.py, almacen.py y reportes.py.
 """
 
+from collections.abc import Callable
+
 import almacen
 import gestor
 import reportes
@@ -22,7 +24,7 @@ OPCIONES_MENU = (
 )
 
 
-def pedir_numero(mensaje):
+def pedir_numero(mensaje: str) -> float:
     """Pide un numero al usuario hasta que escriba algo valido."""
     while True:
         respuesta = input(mensaje)
@@ -32,17 +34,17 @@ def pedir_numero(mensaje):
             print("Eso no es un numero, intenta de nuevo.")
 
 
-def pedir_entero(mensaje):
+def pedir_entero(mensaje: str) -> int:
     """Pide un numero y lo trunca a entero (cantidades y stock)."""
     return int(pedir_numero(mensaje))
 
 
-def mostrar_error():
+def mostrar_error() -> None:
     """Imprime el ultimo error registrado por la logica de negocio."""
     print("Error:", gestor.ultimo_error)
 
 
-def opcion_agregar_producto():
+def opcion_agregar_producto() -> None:
     """Opcion 1: da de alta un producto con los datos del usuario."""
     codigo = input("Codigo: ")
     nombre = input("Nombre: ")
@@ -54,7 +56,7 @@ def opcion_agregar_producto():
         mostrar_error()
 
 
-def opcion_registrar_venta():
+def opcion_registrar_venta() -> None:
     """Opcion 2: registra una venta e imprime su ticket."""
     codigo = input("Codigo del producto: ")
     cantidad = pedir_entero("Cantidad: ")
@@ -66,7 +68,7 @@ def opcion_registrar_venta():
         mostrar_error()
 
 
-def opcion_cotizar():
+def opcion_cotizar() -> None:
     """Opcion 3: muestra el total estimado de una compra."""
     codigo = input("Codigo del producto: ")
     cantidad = pedir_entero("Cantidad: ")
@@ -77,23 +79,23 @@ def opcion_cotizar():
         mostrar_error()
 
 
-def opcion_reporte_inventario():
+def opcion_reporte_inventario() -> None:
     """Opcion 4."""
     print(reportes.reporte_inventario())
 
 
-def opcion_resumen_ventas():
+def opcion_resumen_ventas() -> None:
     """Opcion 5."""
     print(reportes.resumen_ventas())
 
 
-def opcion_mas_vendidos():
+def opcion_mas_vendidos() -> None:
     """Opcion 6."""
     for codigo, unidades in reportes.mas_vendidos():
         print(codigo, "->", unidades, "unidades")
 
 
-def opcion_alertas_stock():
+def opcion_alertas_stock() -> None:
     """Opcion 7: lista los productos con stock bajo."""
     productos_bajos = reportes.productos_stock_bajo()
     if not productos_bajos:
@@ -103,7 +105,7 @@ def opcion_alertas_stock():
         print("OJO:", producto["nombre"], "solo tiene", producto["stock"], "unidades")
 
 
-def guardar_y_salir():
+def guardar_y_salir() -> None:
     """Opcion 8: guarda los datos y avisa si hubo un problema."""
     if almacen.guardar_datos(ARCHIVO):
         print("Datos guardados. Hasta luego.")
@@ -111,7 +113,7 @@ def guardar_y_salir():
         mostrar_error()
 
 
-ACCIONES = {
+ACCIONES: dict[str, Callable[[], None]] = {
     "1": opcion_agregar_producto,
     "2": opcion_registrar_venta,
     "3": opcion_cotizar,
@@ -123,21 +125,21 @@ ACCIONES = {
 OPCION_SALIR = "8"
 
 
-def cargar_datos_iniciales():
+def cargar_datos_iniciales() -> None:
     """Carga el archivo de datos si existe."""
     if almacen.existe_archivo(ARCHIVO):
         almacen.cargar_datos(ARCHIVO)
         print("Datos cargados de", ARCHIVO)
 
 
-def imprimir_menu():
+def imprimir_menu() -> None:
     """Muestra las opciones disponibles."""
     print("")
     for opcion in OPCIONES_MENU:
         print(opcion)
 
 
-def menu():
+def menu() -> None:
     """Ciclo principal: muestra el menu y ejecuta la opcion elegida."""
     print("Bienvenido al gestor de la tienda La Esquina")
     cargar_datos_iniciales()

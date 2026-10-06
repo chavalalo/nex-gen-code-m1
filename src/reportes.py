@@ -11,22 +11,22 @@ import gestor
 MARCA_STOCK_BAJO = "  <-- STOCK BAJO"
 
 
-def formatear_moneda(monto):
+def formatear_moneda(monto: float) -> str:
     """Da formato de dinero a un numero: 12.5 -> "$12.5"."""
     return "$" + str(round(monto, 2))
 
 
-def tiene_stock_bajo(producto):
+def tiene_stock_bajo(producto: gestor.Producto) -> bool:
     """Indica si un producto esta por debajo del stock minimo."""
     return producto["stock"] < gestor.STOCK_MINIMO
 
 
-def productos_stock_bajo():
+def productos_stock_bajo() -> list[gestor.Producto]:
     """Regresa la lista de productos con stock por debajo del minimo."""
     return [p for p in gestor.INVENTARIO.values() if tiene_stock_bajo(p)]
 
 
-def _linea_de_inventario(producto):
+def _linea_de_inventario(producto: gestor.Producto) -> str:
     """Arma la linea del reporte de inventario para un producto."""
     linea = (
         f"{producto['codigo']} | {producto['nombre']} | "
@@ -37,7 +37,7 @@ def _linea_de_inventario(producto):
     return linea
 
 
-def reporte_inventario():
+def reporte_inventario() -> str:
     """Regresa el reporte del inventario como texto."""
     productos = gestor.INVENTARIO.values()
     valor_total = sum(p["precio"] * p["stock"] for p in productos)
@@ -47,17 +47,17 @@ def reporte_inventario():
     return "\n".join(lineas) + "\n"
 
 
-def total_vendido():
+def total_vendido() -> float:
     """Suma el total (con IVA) de todas las ventas registradas."""
     return round(sum(venta["total"] for venta in gestor.VENTAS), 2)
 
 
-def mas_vendidos(n=3):
+def mas_vendidos(n: int = 3) -> list[tuple[str, int]]:
     """Regresa los n productos mas vendidos como lista de (codigo, unidades).
 
     En caso de empate se respeta el orden en que se vendieron por primera vez.
     """
-    unidades_por_codigo = Counter()
+    unidades_por_codigo: Counter[str] = Counter()
     for venta in gestor.VENTAS:
         unidades_por_codigo[venta["codigo"]] += venta["cantidad"]
     ranking = sorted(
@@ -66,7 +66,7 @@ def mas_vendidos(n=3):
     return ranking[:n]
 
 
-def resumen_ventas():
+def resumen_ventas() -> str:
     """Regresa el resumen de ventas del dia como texto."""
     lineas = ["===== RESUMEN DE VENTAS ====="]
     lineas.extend(
