@@ -15,6 +15,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 0 | Configuración + diagnóstico (ver detalle) | `CLAUDE.md`, `.claudeignore`, `.claude/settings.json`, `docs/diagnostico.md` | Dar contexto y reglas al agente antes de tocar código | 20/20 ✅ | 20 errores (línea base) |
 | — | Pruebas de caracterización (red de seguridad) | `tests/test_caracterizacion.py` nuevo, 36 pruebas | Detectar cualquier cambio de comportamiento que los 20 tests no ven | 56/56 ✅ | 20 |
 | 1 | Eliminar código muerto verificando con grep | −40 líneas: 3 funciones muertas, global e import sin uso, encoding | Menos superficie, cero ambigüedad; git guarda el historial | 56/56 ✅ | 13 |
+| 2 | Números mágicos → constantes, sin tocar la estructura | 13 constantes de negocio en `gestor.py`; `reportes` usa `STOCK_MINIMO` | Nombres que explican la regla; una sola fuente de verdad | 56/56 ✅ | 13 |
 
 ---
 
@@ -183,3 +184,44 @@ cubre git: cualquier versión anterior se puede recuperar del historial.
 
 **Validación:** `grep` sin usos → `pytest` **56 passed** → `ruff` 20 → **13 errores**
 (desaparecen F401, 4×UP009, N802 de `reporteViejoCSV` y un SIM115).
+
+---
+
+## Refactorización 2 — Reemplazar números mágicos por constantes de negocio
+
+**Prompt:**
+
+```text
+Refactorización 2: reemplaza los números mágicos y literales de negocio por
+constantes con nombre en MAYÚSCULAS, agrupadas al inicio de gestor.py en una
+sección "Reglas de negocio" con un comentario breve por grupo:
+IVA (0.16), umbrales y tasas de descuento por volumen (1000/0.10, 500/0.05),
+regla VIP ("VIP", 0.02, 200), stock mínimo (5, usado en reportes.py dos
+veces), encabezado/separador del ticket y formato de fecha.
+Restricciones: NO cambies la estructura de los if ni el orden de las
+operaciones (eso es la refactorización 3 y 4); solo sustituye literales, de
+modo que los resultados de punto flotante sean idénticos. reportes.py debe
+usar la constante de gestor, no redefinirla.
+Al final, demuestra con grep que no quedan literales numéricos de negocio
+fuera de las definiciones.
+```
+
+**Cambio:** 13 constantes nuevas (`TASA_IVA`, `UMBRAL_DESCUENTO_ALTO`,
+`TASA_DESCUENTO_MEDIO`, `PREFIJO_CLIENTE_VIP`, `MONTO_MINIMO_VIP`,
+`STOCK_MINIMO`, `NOMBRE_TIENDA`, …). `reportes.py` usa `gestor.STOCK_MINIMO`
+en sus dos apariciones.
+
+**Justificación:** `0.16` o `5` no dicen *qué* son; `TASA_IVA` y
+`STOCK_MINIMO` sí. Además, cada regla vive en un solo lugar: si el IVA o el
+umbral de stock bajo cambian, se modifica una línea (antes había que
+encontrar 2–3 copias y era fácil olvidar una, como el `5` duplicado entre
+`productos_stock_bajo` y `reporte_inventario`).
+
+**Decisión de alcance:** se pidió explícitamente no reestructurar los `if`
+en este paso. Mezclar "renombrar literales" con "cambiar la lógica" en un
+mismo commit hace el diff difícil de revisar y, si un test falla, no sabes
+cuál de los dos cambios lo rompió.
+
+**Validación:** `grep` → solo quedan literales en las definiciones;
+`pytest` **56 passed**; `ruff` **13** (sin cambio esperado: este paso no
+atacaba reglas de ruff).

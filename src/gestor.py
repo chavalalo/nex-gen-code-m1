@@ -3,6 +3,30 @@
 from datetime import datetime
 
 # ---------------------------------------------------------------
+# Reglas de negocio
+# ---------------------------------------------------------------
+TASA_IVA = 0.16
+
+# Descuento por volumen: se aplica sobre el subtotal de la venta
+UMBRAL_DESCUENTO_ALTO = 1000
+TASA_DESCUENTO_ALTO = 0.10
+UMBRAL_DESCUENTO_MEDIO = 500
+TASA_DESCUENTO_MEDIO = 0.05
+
+# Descuento extra para clientes cuyo codigo empieza con el prefijo VIP,
+# solo si el monto (ya con descuento por volumen) supera el minimo
+PREFIJO_CLIENTE_VIP = "VIP"
+TASA_DESCUENTO_VIP = 0.02
+MONTO_MINIMO_VIP = 200
+
+# Productos con menos unidades que esto se consideran con stock bajo
+STOCK_MINIMO = 5
+
+NOMBRE_TIENDA = "TIENDA LA ESQUINA"
+SEPARADOR_TICKET = "-" * 28
+FORMATO_FECHA = "%Y-%m-%d %H:%M:%S"
+
+# ---------------------------------------------------------------
 # Estado global de la aplicacion (inventario, ventas y contadores)
 # ---------------------------------------------------------------
 INVENTARIO = {}
@@ -108,22 +132,22 @@ def registrar_venta(codigo, cantidad, cliente=""):
     aux = temp2["precio"] * cantidad
     # descuentos por volumen de compra
     desc = 0
-    if aux >= 1000:
-        desc = aux * 0.10
+    if aux >= UMBRAL_DESCUENTO_ALTO:
+        desc = aux * TASA_DESCUENTO_ALTO
     else:
-        if aux >= 500:
-            desc = aux * 0.05
+        if aux >= UMBRAL_DESCUENTO_MEDIO:
+            desc = aux * TASA_DESCUENTO_MEDIO
         else:
             desc = 0
     # los clientes cuyo codigo empieza con VIP tienen un extra,
     # pero solo si su compra (ya con descuento) pasa de cierto monto
     if cliente != "" and cliente is not None:
-        if len(cliente) >= 3:
-            if cliente[0:3] == "VIP":
-                if aux - desc > 200:
-                    desc = desc + aux * 0.02
+        if len(cliente) >= len(PREFIJO_CLIENTE_VIP):
+            if cliente[0 : len(PREFIJO_CLIENTE_VIP)] == PREFIJO_CLIENTE_VIP:
+                if aux - desc > MONTO_MINIMO_VIP:
+                    desc = desc + aux * TASA_DESCUENTO_VIP
     base = aux - desc
-    impuesto = base * 0.16
+    impuesto = base * TASA_IVA
     total = round(base + impuesto, 2)
     # descontar del inventario
     temp2["stock"] = temp2["stock"] - cantidad
@@ -138,11 +162,11 @@ def registrar_venta(codigo, cantidad, cliente=""):
     venta["impuesto"] = round(impuesto, 2)
     venta["total"] = total
     venta["cliente"] = cliente
-    venta["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    venta["fecha"] = datetime.now().strftime(FORMATO_FECHA)
     # armar el ticket en texto plano
     t = ""
-    t = t + "TIENDA LA ESQUINA\n"
-    t = t + "----------------------------\n"
+    t = t + NOMBRE_TIENDA + "\n"
+    t = t + SEPARADOR_TICKET + "\n"
     t = t + "Folio: " + str(venta["folio"]) + "\n"
     t = t + venta["nombre"] + " x" + str(cantidad) + "\n"
     t = t + "Subtotal: $" + str(venta["subtotal"]) + "\n"
@@ -166,11 +190,11 @@ def cotizar(codigo, cantidad):
         return None
     aux = INVENTARIO[codigo]["precio"] * cantidad
     desc = 0
-    if aux >= 1000:
-        desc = aux * 0.10
+    if aux >= UMBRAL_DESCUENTO_ALTO:
+        desc = aux * TASA_DESCUENTO_ALTO
     else:
-        if aux >= 500:
-            desc = aux * 0.05
+        if aux >= UMBRAL_DESCUENTO_MEDIO:
+            desc = aux * TASA_DESCUENTO_MEDIO
     base = aux - desc
-    total = base + base * 0.16
+    total = base + base * TASA_IVA
     return round(total, 2)
