@@ -19,6 +19,7 @@ cambio → `pytest -q` → `ruff check src` → revisión del `git diff` → com
 | 3 | Extraer cálculo de precios duplicado (con CoT para demostrar equivalencia de floats) | `calcular_descuento_volumen`, `calcular_importes` → `Importes`; usadas por venta y cotización | DRY: venta y cotización ya no pueden divergir; lógica de precios aislada y probable | 56/56 ✅ | 11 |
 | 4 | Dividir `registrar_venta` + cláusulas de guarda (con lista de lo que NO debe cambiar) | 4 funciones extraídas; complejidad 12 → 2; VIP de 4 `if` a 1 | Responsabilidad única, sin efecto flecha, intención explícita | 56/56 ✅ | 8 |
 | 5 | Renombrado descriptivo + PEP 8 con few-shot de ejemplos y lista de nombres intocables | ~35 renombres en 4 archivos; comentarios → docstrings | Código autoexplicativo; estilo consistente | 56/56 ✅ | 6 |
+| 6 | Manejo de errores con TDD (prueba en rojo → fix mínimo → iteración UTF-8) | `with`, excepciones específicas, validación antes de mutar, errores como constantes | Carga atómica; ningún error se traga ni deja el sistema a medias | 64/64 ✅ | 2 |
 
 ---
 
@@ -391,3 +392,72 @@ cambio.
 **Validación:** `grep` de nombres cortos → solo falsos positivos
 (f-strings, `\n`); `pytest` **56 passed**; `ruff` 8 → **6** (desaparecen
 N802 y N816).
+
+---
+
+## Refactorización 6 — Manejo de errores en la persistencia (con TDD)
+
+**Prompt 6a — prueba en rojo primero:**
+
+```text
+Refactorización 6 (almacen.py). Antes de cambiar código, escribe en un
+archivo NUEVO tests/test_manejo_errores.py pruebas que reproduzcan estos
+problemas y córrelas para confirmar que FALLAN con el código actual:
+- JSON válido pero sin "inventario"/"ventas", o con tipos incorrectos
+  (lista en lugar de objeto) -> debe regresar False, ultimo_error
+  "archivo corrupto" y NO modificar el estado actual;
+- cargar una ruta que es un directorio -> False, "no se pudo leer el archivo";
+- guardar en una carpeta que no existe -> False, "no se pudo guardar el archivo";
+- el menú debe avisar si no pudo guardar en vez de decir "Datos guardados".
+Muéstrame el error real de cada prueba fallida.
+```
+
+**Resultado en rojo** (`docs/evidencia/r6_tdd_rojo.log`): 7 fallas, cada una
+con una excepción no controlada (`KeyError`, `TypeError`,
+`IsADirectoryError`, `FileNotFoundError`).
+
+**Hallazgo nuevo gracias al TDD:** con `{"inventario": {}}` (falta
+`"ventas"`) el código original **ya había vaciado `INVENTARIO`** cuando
+lanzó el `KeyError` → dejaba el sistema a medio cargar. Y con
+`{"inventario": [], "ventas": []}` regresaba `True` aceptando datos con un
+tipo incorrecto. Ninguno de los dos estaba en el diagnóstico inicial: se
+descubrieron al escribir la prueba.
+
+**Prompt 6b — corrección:**
+
+```text
+Ahora corrige almacen.py con el cambio mínimo para que las pruebas pasen:
+- usa `with open(...)` en guardar y cargar (sin el modo "r" redundante);
+- captura excepciones concretas, nunca `except Exception`:
+  json.JSONDecodeError -> "archivo corrupto"; OSError -> los mensajes nuevos;
+- valida la estructura (dict con "inventario" dict y "ventas" list) ANTES de
+  tocar el estado global;
+- los mensajes de error como constantes del módulo;
+- hayArchivo/existe_archivo: regresa la condición directamente;
+- en main, imprime "Error: <motivo>" si guardar_datos regresa False.
+Conserva los mensajes existentes ("el archivo no existe", "archivo corrupto").
+```
+
+**Iteración:** después de la primera corrección pregunté por casos que se
+escaparan de las dos excepciones capturadas. Un archivo que no está en UTF-8
+lanza `UnicodeDecodeError` (subclase de `ValueError`, no de `OSError`).
+Se agregó la prueba (falló en rojo) y se capturó junto con `JSONDecodeError`.
+
+**Cambio:** `almacen.py` reescrito: `with` en los dos `open`, excepciones
+específicas, `_tiene_estructura_valida`, el estado global solo se modifica
+cuando los datos ya son válidos, `update`/`extend` en lugar de copiar con
+ciclos, `existe_archivo` en una línea. `main` reporta el error de guardado.
+
+**Justificación:** `open` sin `with` deja el archivo abierto si ocurre una
+excepción entre `open` y `close`. `except Exception` oculta errores de
+programación y mezcla "archivo corrupto" con "disco lleno". Validar antes de
+mutar hace la carga **atómica**: o se carga todo o no cambia nada.
+
+**Cambio de comportamiento deliberado (documentado):** casos que antes
+lanzaban una excepción ahora regresan `False` con un mensaje, como ya
+prometía el docstring original ("Regresa False si el archivo no existe o
+esta corrupto"). Ningún caso que antes funcionaba cambió.
+
+**Validación:** 8 pruebas nuevas en verde → `pytest` **64 passed**
+(`docs/evidencia/r6_tdd_verde.log`); `ruff` 6 → **2** (desaparecen 2×SIM115,
+UP015, SIM103). Quedan I001 y C901 de `main.py` (refactorización 8).

@@ -77,8 +77,10 @@ def menu():
                         producto["stock"], "unidades",
                     )
         elif opcion == "8":
-            almacen.guardar_datos(ARCHIVO)
-            print("Datos guardados. Hasta luego.")
+            if almacen.guardar_datos(ARCHIVO):
+                print("Datos guardados. Hasta luego.")
+            else:
+                print("Error:", gestor.ultimo_error)
             break
         else:
             print("Opcion no valida.")
